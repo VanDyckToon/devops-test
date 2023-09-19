@@ -1,0 +1,55 @@
+name: Test, Upload artifact and Deploy
+
+on: workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ 17 ]
+    name: Run unit tests on Java ${{ matrix.java }}
+    steps:
+      - uses: actions/checkout@master
+      - name: Setup java
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java }}
+      - run: mvn -f pom.xml clean test
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+    name: Build, package and upload .jar artifact
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up JDK 17
+      uses: actions/setup-java@v1
+      with:
+        java-version: 17
+    - name: Build and package project
+      run: mvn -f pom.xml clean package
+    - name: Show contents of the current working directory
+      run: ls -la
+    - name: Show contents of a target directory
+      run: ls -la target
+    - name: Upload Maven build artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: artifact
+        path: ./target/exercise-renovation-0.0.1-SNAPSHOT.jar
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up JDK 17
+        uses: actions/setup-java@v1
+        with:
+         java-version: 17
+      - name: Install Railway
+        run: npm i -g @railway/cli
+      - name: Deploy
+        run: railway up
+        env:
+          RAILWAY_TOKEN: ${{ secrets.ACTIONS_DEPLOY }}
